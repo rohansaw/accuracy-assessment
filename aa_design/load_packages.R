@@ -35,6 +35,8 @@ packages(DT)
 #packages(dismo)
 packages(stringr)
 packages(plyr)
+packages(dplyr)
+packages(tidyr)
 
 ## Packages for graphics and interactive maps
 packages(ggplot2)

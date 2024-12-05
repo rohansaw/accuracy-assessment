@@ -295,32 +295,26 @@ shinyUI(
         tabItem(tabName = 'Classes',
                 fluidRow(
                   ####################################################################################
-                  # New box
-                  box(title= textOutput('t4_b1_title'), status = "success", solidHeader= TRUE,
-                      collapsible=T,collapsed=T,
-                      htmlOutput('t4_b1_body'),
-                      tags$ul(
-                        tags$li(htmlOutput("the_ex_ua_hi")),
-                        tags$li(htmlOutput("the_ex_ua_lo"))
-                      )
+                  # Instructions Box
+                  box(
+                    title = textOutput('t4_b1_title'), 
+                    status = "success", 
+                    solidHeader = TRUE,
+                    collapsible = TRUE,
+                    collapsed = TRUE,
+                    htmlOutput('t4_b1_body'),
+                    tags$ul(
+                      tags$li("Specify the User Accuracy (UA) for each map class.")
+                    )
                   ),
                   
-                  
                   ####################################################################################
-                  # New box
-                  box(h4(textOutput('t4_b2_title')),
-                      uiOutput("selectUI_cat_hi"),
-                      htmlOutput("selectUI_cat_lo")  
-                  ),
-                  ####################################################################################
-                  # New box
-                  box(h4(textOutput('t4_b3_title')),
-                      sliderInput("expected_ua_hi", 
-                                  label = h3(textOutput('t4_b3_heua')),
-                                  min = 0.5, max = 1, value = 0.9),
-                      sliderInput("expected_ua_lo", 
-                                  label = h3(textOutput('t4_b3_leua')),
-                                  min = 0.5, max = 1, value = 0.7)
+                  # User Accuracy Inputs
+                  box(
+                    title = h4(textOutput('t4_b2_title')),
+                    status = "success", 
+                    solidHeader = TRUE,
+                    uiOutput("UAInputs") # Dynamically generated user accuracy inputs
                   )
                 )
         ),
@@ -344,7 +338,7 @@ shinyUI(
                                    label = textOutput('t5_b1_mss'),
                                    value = 100),
                       
-                      checkboxInput("IsManualSampling",label=textOutput('t5_b1_modify'))
+                      # checkboxInput("IsManualSampling",label=textOutput('t5_b1_modify'))
                       #,htmlOutput("selectManualSampling")
                   ),
                   
@@ -354,11 +348,22 @@ shinyUI(
                       br(),
                       htmlOutput("overall_sampling_size"),
                       tableOutput("sampling_table"),
-                      textInput("basename_sampling", 
-                                label = h3(textOutput('basename_sampling_field')),                                      
-                                value = paste("sampling_",Sys.Date(),sep="")),
-                      downloadButton('download_sampling', 
-                                     label=textOutput('download_sampling_button'))
+  
+                  ),
+                  
+                  ####################################################################################
+                  # New box
+                  
+                  box(
+                    title = "Adjust Sampling", status = "success", solidHeader= TRUE, width=4,
+                    h4("Adjust the 'Final' Values for Each Stratum"),
+                    br(),
+                    uiOutput("adjust_sampling_ui"), # Dynamic UI for adjustment
+                    textInput("basename_sampling", 
+                              label = h3(textOutput('basename_sampling_field')),                                      
+                              value = paste("sampling_",Sys.Date(),sep="")),
+                    downloadButton('download_sampling', 
+                                   label=textOutput('download_sampling_button'))
                   ),
                   
                   

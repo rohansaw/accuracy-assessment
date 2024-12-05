@@ -27,7 +27,7 @@
 ####### Start Server
 
 shinyServer(function(input, output, session) {
-
+  
   observeEvent(input$jsEvent, {
     output$ceo_url_with_clipboard <- renderUI({
       if (input$jsEvent$status == 200) {
@@ -54,7 +54,7 @@ shinyServer(function(input, output, session) {
       }
     })
   })
-
+  
   observeEvent(input$create_ceo_project, {
     ceo_file_name = paste0(input$basename_CE, "_ceo.csv")
     ceo_file = file.path(outdir(), ceo_file_name)
@@ -65,7 +65,7 @@ shinyServer(function(input, output, session) {
     #cat(file=stderr(), classes, input$basename_CE,  input$box_size, "\n", csv)
     session$sendCustomMessage(type = "create_ceo_project", message = message)
   })
-
+  
   ####################################################################################
   ##################### Choose language option             ###########################
   ####################################################################################
@@ -232,7 +232,7 @@ shinyServer(function(input, output, session) {
                      system(
                        "wget -O ~/sae_data_test/test_map_congo.tif https://github.com/openforis/data_test/raw/master/aa_test_congo.tif"
                        # "wget -O ~/sae_data_test/dd_map_0414_gt30_option1.tif https://github.com/openforis/data_test/raw/master/dd_map_0414_gt30_option1.tif"
-                       )
+                     )
                    })
     } else
       if (osSystem == "Windows") {
@@ -749,11 +749,32 @@ shinyServer(function(input, output, session) {
     txtbox_ids <- sapply(1:length(ids), function(i) {
       paste("txtInput", mapareatable_reactive$map_code[i], sep = "")
     })
-    # Get values
+    # Get values from inputs
     for (i in 1:length(txtbox_ids)) {
       mapareatable_reactive$map_edited_class[i] <-
         sprintf(input[[as.character(txtbox_ids[i])]])
     }
+    
+    # Merge classes with the same label
+    existing_map_codes <- max(as.numeric(mapareatable_reactive$map_code), na.rm = TRUE)
+    mapareatable_reactive <- mapareatable_reactive %>%
+      group_by(map_edited_class) %>%
+      summarise(
+        map_area = sum(map_area),                       # Sum areas
+        original_classes = paste(map_code, collapse = ", "), # Preserve original map codes
+        num_original_classes = n_distinct(map_code), 
+        .groups = 'drop'
+      ) %>%
+      mutate(
+        map_code = ifelse(
+          num_original_classes > 1, # Check if a merge occurred
+          max(existing_map_codes) + row_number(), # Assign new unique map code
+          as.numeric(original_classes) # Retain original map code
+        )
+      ) %>%
+      select(-num_original_classes) %>% # Remove intermediate column if not needed
+      arrange(map_edited_class)
+    
     mapareatable_reactive
   })
   
@@ -818,7 +839,7 @@ shinyServer(function(input, output, session) {
       
       m <- leaflet() %>% addTiles()  %>%  addRasterImage(lcmap())
       m
-   }
+    }
   })
   
   
@@ -840,72 +861,39 @@ shinyServer(function(input, output, session) {
   ##################################################################################################################################
   ############### Display the message regarding expected user's accuracy
   ##################################################################################################################################
-  output$the_ex_ua_lo <- reactive({
-    validate(need(
-      input$submitLegend,
-      "Click on submit legend in the previous tab"
-    ))
-    paste(textOutput("msg_rare_classes"),
-          input$expected_ua_lo,
-          sep = "")
-  })
-  
-  output$the_ex_ua_hi <- reactive({
-    paste(textOutput("msg_comm_classes"),
-          input$expected_ua_hi,
-          sep = "")
-  })
-  
+  # output$the_ex_ua_lo <- reactive({
+  #   validate(need(
+  #     input$submitLegend,
+  #     "Click on submit legend in the previous tab"
+  #   ))
+  #   paste(textOutput("msg_rare_classes"),
+  #         input$expected_ua_lo,
+  #         sep = "")
+  # })
+  # 
+  # output$the_ex_ua_hi <- reactive({
+  #   paste(textOutput("msg_comm_classes"),
+  #         input$expected_ua_hi,
+  #         sep = "")
+  # })
+  # 
   ##################################################################################################################################
-  ############### Select classes to be included with High expected User's Accuracy
-  output$selectUI_cat_hi <- renderUI({
-    print('Check: output$selectUI_cat_hi')
-    print(textOutput("msg_classes_heua"))
-    
-    validate(need(
-      input$submitLegend,
-      "Click on submit legend in the previous tab"
-    ))
-    req(maparea_final())
+  ############### Select User's Accuracy for the different classes
+  output$UAInputs <- renderUI({
+    req(input$submitLegend)
     maparea <- maparea_final()
     categories <- as.list(unique(maparea$map_edited_class))
     
-    selectInput(
-      "cat_hi",
-      label = h5(
-        paste("high confidence (Expected UA = ", #textOutput("msg_classes_heua"),
-              input$expected_ua_hi, sep = ""),
-        ")"
-      ),
-      choices = categories,
-      multiple = TRUE
-    )
-  })
-  
-  ##################################################################################################################################
-  ############### Select classes to be included with Low expected User's Accuracy
-  output$selectUI_cat_lo <- renderUI({
-    print('Check: output$selectUI_cat_lo')
-    
-    req(maparea_final())
-    req(input$cat_hi)
-    maparea <- as.data.frame(maparea_final())
-    high_ua <- input$cat_hi
-    
-    ## exclude classes already chosen in high expected user's accuracy
-    categories <-
-      as.list(unique(maparea$map_edited_class[!maparea$map_edited_class %in% high_ua]))
-    
-    selectInput(
-      "cat_lo",
-      label = h5(
-        paste("low confidence (Expected UA = ", #htmlOutput("msg_classes_leua"),
-              input$expected_ua_lo, sep = ""),
-        ")"
-      ),
-      choices = categories,
-      multiple = TRUE
-    )
+    tagList(lapply(categories, function(class_name) {
+      numericInput(
+        inputId = paste0("ua_", class_name),
+        label = paste("User Accuracy for class:", class_name),
+        value = 0.85, # Default value
+        min = 0,
+        max = 1,
+        step = 0.01
+      )
+    }))
   })
   
   ##################################################################################################################################
@@ -914,65 +902,49 @@ shinyServer(function(input, output, session) {
     print('Check: strat_sample')
     
     maparea <- as.data.frame(maparea_final())
-    
+    print(names(maparea)) # Lists all column names
     
     ############### Read the inputs from the dropdown menu
-    list_categories_hi <- input$cat_hi
-    list_categories_lo <- input$cat_lo
     exp_overall        <- input$expected_overall_accuracy
     minimum_ssize      <- input$minsample
-    expected_ua_hi     <- input$expected_ua_hi
-    expected_ua_lo     <- input$expected_ua_lo
     
-    list_categories <-
-      append(list_categories_hi, list_categories_lo)
+    ############### Add a column for Weight (wi)
+    maparea$wi <- maparea$map_area / sum(as.numeric(maparea$map_area))
     
-    ############### Select only samples in selected list
-    maparea$map_edited_class <-
-      as.character(maparea$map_edited_class)
+    ############### Retrieve user-defined accuracies for each class
+    maparea$eua <- sapply(maparea$map_edited_class, function(class_name) {
+      input[[paste0("ua_", class_name)]]
+    })
     
-    df <- maparea[maparea$map_edited_class %in% list_categories, ]
-    sumofmapcategories <- sum(as.numeric(df$map_area))
-    df$map_area <- as.numeric(df$map_area)
-    ############### Add a column for Weight (wi) expected Users accuracy (eua)
-    df$wi <- df$map_area / sumofmapcategories
-    df$eua <- 0
+    # Ensure no NULL values in UA
+    maparea$eua[is.na(maparea$eua)] <- 0.85 # Default to 0.85 if not set
     
-    ############### Account for null values in the EUA
-    if (!is.null(list_categories_hi)) {
-      df[df$map_edited_class %in% list_categories_hi, ]$eua <-
-        expected_ua_hi
-    }
-    if (!is.null(list_categories_lo)) {
-      df[df$map_edited_class %in% list_categories_lo, ]$eua <-
-        expected_ua_lo
-    }
+    ############## Add columns for Standard Error (si), and Weighted SE (wisi)
+    maparea$si <- sqrt(maparea$eua * (1 - maparea$eua))
+    maparea$wisi <- maparea$wi * maparea$si
     
-    ############### Add a column for Standard Error and Weighted SE
-    df$si <- sqrt(df$eua * (1 - df$eua))
-    df$wisi <- df$wi * df$si
     
     ############### Compute overall sampling size
-    sum.wi.si <- sum(df$wisi)
+    sum.wi.si <- sum(maparea$wisi)
     overallsample <- (sum.wi.si / exp_overall) ^ 2
     
     ############### Compute equal,proportional and adjusted sampling repartition
-    df$equal <- floor(overallsample / nrow(df))
-    df$proportional <- floor(df$wi * overallsample)
-    df$min[df$proportional < minimum_ssize] <- minimum_ssize
-    df$adjprop  <-
-      df$map_area / (sum(df$map_area[df$proportional >= minimum_ssize]))
-    df$adjusted <- df$adjprop * (overallsample - sum(df$min, na.rm = T))
-    df$adjusted[df$adjusted < minimum_ssize] <- minimum_ssize
-    df$adjusted <- floor(df$adjusted)
-    df$final    <- df$adjusted
-    write.csv(df, paste0(outdir(), "/sampling.csv"), row.names = F)
-    write.csv(df[, c(1, 2, 3, 8, 9, 12, 13)], paste0(outdir(), "/manual_sampling.csv"), row.names =
-                F)
+    maparea$equal <- floor(overallsample / nrow(maparea))
+    maparea$proportional <- floor(maparea$wi * overallsample)
+    maparea$min[maparea$proportional < minimum_ssize] <- minimum_ssize
+    maparea$adjprop  <-
+      maparea$map_area / (sum(maparea$map_area[maparea$proportional >= minimum_ssize]))
+    maparea$adjusted <- maparea$adjprop * (overallsample - sum(maparea$min, na.rm = T))
+    maparea$adjusted[maparea$adjusted < minimum_ssize] <- minimum_ssize
+    maparea$adjusted <- floor(maparea$adjusted)
+    maparea$final    <- maparea$adjusted
+    write.csv(maparea, paste0(outdir(), "/sampling.csv"), row.names = F)
+    # write.csv(maparea[, c("map_code", "map_area", "map_edited_class", "equal", "proportional","adjusted","final")], paste0(outdir(), "/manual_sampling.csv"), row.names =
+    #             F)
     
-    ############### Compute the total sample size and distribution between classes
-    df
+    maparea
   })
+  
   
   ############### Display the total sample size
   output$overall_sampling_size <- reactive({
@@ -984,10 +956,10 @@ shinyServer(function(input, output, session) {
         input$submitLegend,
         "Click on submit legend in tab 2 'Map areas'"
       ),
-      need(
-        input$cat_hi,
-        "Select the classes to include with high and low confidence in the previous tab"
-      )
+      # need(
+      #   input$cat_hi,
+      #   "Select the classes to include with high and low confidence in the previous tab"
+      # )
     )
     
     df <- strat_sample()
@@ -1015,32 +987,63 @@ shinyServer(function(input, output, session) {
   ##################################################################################################################################
   ############### Determine whether final sampling is automatic or manual
   final_sampling <- reactive({
-    if (input$IsManualSampling == T) {
-      # validate(
-      #   need(input$ManualSamplingFile, "Missing input: Select a file with the manual sampling points before continuing or unselect 'Do you want to modify the sampling size?'")
-      # )
-      
-      df <-
-        read.csv(paste(outdir(), "/", "manual_sampling.csv", sep = ""),
-                 header = T)
-      #df<-read.csv(paste(outdir(),"/",input$ManualSamplingFile$name,sep=""),header = T)
-      } else{
-      df <- strat_sample()
-      df <- df[, c(1, 2, 3, 8, 9, 12, 13)]
-    }
+    # if (input$IsManualSampling == T) {
+    #   # validate(
+    #   #   need(input$ManualSamplingFile, "Missing input: Select a file with the manual sampling points before continuing or unselect 'Do you want to modify the sampling size?'")
+    #   # )
+    #   
+    #   df <-
+    #     read.csv(paste(outdir(), "/", "manual_sampling.csv", sep = ""),
+    #              header = T)
+    #   #df<-read.csv(paste(outdir(),"/",input$ManualSamplingFile$name,sep=""),header = T)
+    # } else{
+    df <- strat_sample()
+    df <- df[, c("map_code", "map_area", "map_edited_class", "equal", "proportional","adjusted","final")]
+    #}
     
-    })
+  })
   
   ##################################################################################################################################
   ############### Display the results of sampling within the UI
   output$sampling_table <- renderTable({
     print('Check: output$sampling_table')
     df <- final_sampling()
-    df <- df[, c(3, 5, 6, 7)]
+    df <- df[, c("map_edited_class", "proportional", "adjusted", "final")]
     names(df) <- c('Map Class', 'Proportional', 'Adjusted', 'Final')
     df
-   },
+  },
   include.rownames = FALSE, digits = 0)
+  
+  ##################################################################################################################################
+  ############### Allow manually refining num samples per stratum
+  
+  output$adjust_sampling_ui <- renderUI({
+    df <- strat_sample()
+    if (is.null(df)) return(NULL)
+    
+    # Generate input fields for each row in the data
+    lapply(1:nrow(df), function(i) {
+      div(
+        numericInput(
+          inputId = paste0("adjusted_final_", i),
+          label = paste(df$map_edited_class[i], "- Adjusted Final. (Original ", df$final[i], ")"),
+          value = df$final[i]
+        )
+      )
+    })
+  })
+  
+  strat_sample_adjusted <- reactive({
+    maparea <- strat_sample()
+    maparea$final_unadjusted <- maparea$final
+    ############### Retrieve user-defined accuracies for each class
+    maparea$final <- sapply(1:nrow(maparea), function(i) {
+      input[[paste0("adjusted_final_", i)]]
+    })
+    
+    maparea
+  })
+  
   
   ##################################################################################################################################
   ############### Allow download of the file
@@ -1049,7 +1052,7 @@ shinyServer(function(input, output, session) {
       paste(input$basename_sampling, ".csv", sep = "")
     },
     content  = function(file) {
-      write.csv(strat_sample(), file, row.names = F)
+      write.csv(strat_sample_adjusted(), file, row.names = F)
     }
   )
   
@@ -1077,13 +1080,25 @@ shinyServer(function(input, output, session) {
     
     if (v$launch == "launched") {
       if (mapType() == "raster_type") {
-        rp <- strat_sample()[, c(1, 2, 3, 13)]
+        rp <- strat_sample_adjusted()[, c("map_code", "map_area", "map_edited_class", "final")]
         print("Check: all_features raster type")
         
-        if (input$IsManualSampling == T) {
-          rp <- final_sampling()
-        }
+        # if (input$IsManualSampling == T) {
+        #   rp <- final_sampling()
+        # }
         map <- as.numeric(lcmap())
+        
+        reclass_table <- mapareatable_event() %>%
+          select(original_classes, map_code) %>%
+          separate_rows(original_classes, sep = ", ") %>%
+          mutate(original_classes = as.numeric(original_classes)) %>%
+          as.matrix()
+        
+        print(reclass_table)
+        
+        # Apply reclassification to the map in memory
+        map <- classify(map, rcl = reclass_table)
+        
         
         #beginCluster()
         
@@ -1093,12 +1108,19 @@ shinyServer(function(input, output, session) {
                      {
                        setProgress(value = .1)
                        rand_sample <-spatSample(map, (sum(rp$final) *
-                                                         10 + log((
-                                                           sum(rp$map_area)
-                                                         ))), method="random", xy = TRUE)
+                                                        10 + log((
+                                                          sum(rp$map_area)
+                                                        ))), method="random", xy = TRUE)
                      })
         names(rand_sample) <- c("x_coord", "y_coord", "map_code")
         rand_sample$id     <- row(rand_sample)[, 1]
+        
+        print(colnames(rp))
+        print("------")
+        print(colnames(rand_sample))
+        print("------")
+        print(str(data.frame(table(rand_sample$map_code))))
+        
         rp2 <-
           merge(
             rp,
@@ -1111,8 +1133,8 @@ shinyServer(function(input, output, session) {
         
         ############### Create the list of classes that need to be specifically sampled
         to_rtp <- rp2[rp2$Freq <  rp2$final, ]$map_code
-
-  
+        
+        
         
         ############### Create the list of classes that are enough represented in the random sampling
         to_spl <- rp2[rp2$Freq >= rp2$final, ]$map_code
@@ -1174,13 +1196,13 @@ shinyServer(function(input, output, session) {
         if (mapType() == "vector_type") {
           print("Check: all_features vector type")
           
-          if (input$IsManualSampling == T) {
-            rp <- final_sampling()
-          }
+          # if (input$IsManualSampling == T) {
+          #   rp <- final_sampling()
+          # }
           
-          else{
-            rp <- strat_sample()
-          }
+          #else{
+          rp <- strat_sample_adjusted()
+          #}
           
           
           legend <- levels(as.factor(rp$map_code))
@@ -1263,7 +1285,7 @@ shinyServer(function(input, output, session) {
                          polys   <- shp[shp[[class_attr]] == legend[i], ]
                          pts     <-
                            st_sample(polys, as.numeric(rp[rp$map_code == legend[i], ]$final), type =
-                                      "random")
+                                       "random")
                          att_vec <- rep(legend[i], nrow(st_coordinates(pts)))
                          df_pts  <- data.frame(cbind(st_coordinates(pts), att_vec))
                          
@@ -1272,7 +1294,7 @@ shinyServer(function(input, output, session) {
                              polys   <- shp[shp[[class_attr]] == legend[i], ]
                              pts     <-
                                st_sample(polys, as.numeric(rp[rp$map_code == legend[i], ]$final), type =
-                                          "random", exact = TRUE)
+                                           "random", exact = TRUE)
                              att_vec <- rep(legend[i], nrow(st_coordinates(pts)))
                              tmp_pts <- data.frame(cbind(st_coordinates(pts), att_vec))
                              df_pts  <- rbind(df_pts, tmp_pts)
@@ -1287,8 +1309,8 @@ shinyServer(function(input, output, session) {
           df_pts[, 2] <- as.numeric(df_pts[, 2])
           
           sp_df <- st_as_sf(df_pts,
-            coords = c(1,2),
-            crs = st_crs(shp)
+                            coords = c(1,2),
+                            crs = st_crs(shp)
           )
           
           all_points <- sp_df
@@ -1314,13 +1336,9 @@ shinyServer(function(input, output, session) {
       need(
         input$submitLegend,
         "Click on submit legend in tab 2 'Map areas'"
-      ),
-      need(
-        input$cat_hi,
-        "Select the classes to include with high and low confidence in tab 3 'Classes to include'"
       )
     )
-     
+    
     ## If input map is a raster
     #if(mapType()== "raster_type"){
     withProgress(message = paste('Processing the points'),
@@ -1331,8 +1349,8 @@ shinyServer(function(input, output, session) {
                    map <- lcmap()
                    
                    sp_df <- st_as_sf(points,
-                     coords = c(1, 2),
-                     crs = st_crs(map)
+                                     coords = c(1, 2),
+                                     crs = st_crs(map)
                    )
                    
                    sp_df <-
@@ -1368,10 +1386,6 @@ shinyServer(function(input, output, session) {
       need(
         input$submitLegend,
         "Click on submit legend in tab 2 'Map areas'"
-      ),
-      need(
-        input$cat_hi,
-        "Select the classes to include with high and low confidence in tab 3 'Classes to include'"
       )
     )
     
@@ -1773,11 +1787,11 @@ shinyServer(function(input, output, session) {
     code_class <- maparea_final()
     
     df1 <-
-      merge(df, code_class[, c(1, 3)], by.x = "ref_code", by.y = "map_code")
+      merge(df, code_class[, c("map_code", "map_edited_class")], by.x = "ref_code", by.y = "map_code")
     names(df1)[ncol(df1)] <- "ref_class"
     
     df1 <-
-      merge(df1, code_class[, c(1, 3)], by.x = "map_code", by.y = "map_code")
+      merge(df1, code_class[, c("map_code", "map_edited_class")], by.x = "map_code", by.y = "map_code")
     names(df1)[ncol(df1)] <- "map_class"
     
     table(df$ref_code, df$map_code)
@@ -1827,10 +1841,10 @@ shinyServer(function(input, output, session) {
     ################# Generate the CEP file
     
     ################# Find the codes to be inserted in the CEP files
-    dfss     <- strat_sample()
+    dfss     <- strat_sample_adjusted()
     basename <- input$basename_CE
     
-    codes <- data.frame(cbind(dfss[, c(1, 3)],
+    codes <- data.frame(cbind(dfss[, c("map_code", "map_edited_class")],
                               seq(1030, 1030 + nrow(dfss) - 1, 1)))
     
     
@@ -1929,9 +1943,9 @@ shinyServer(function(input, output, session) {
     req(CEfile())
     ce <- CEfile()
     ceo <- ce[,c("XCoordinate","YCoordinate","id"#,"map_class","elevation","slope","aspect","region","country"
-                 )]
+    )]
     names(ceo) <- c("LON","LAT","PLOTID"#,"map_class","elevation","slope","aspect","region","country"
-                    )
+    )
     ceo$LON <- as.numeric(ceo$LON)
     ceo$LAT <- as.numeric(ceo$LAT)
     ceo$PLOTID <- as.numeric(ceo$PLOTID)
@@ -2065,12 +2079,12 @@ shinyServer(function(input, output, session) {
       file.remove(paste0(outdir(), "/", input$basename_CE, ".zip"))
     }
   )
-
+  
   output$ui_export_CEO <- renderUI({
     req(v$done == "done")
     actionButton("create_ceo_project", "Create CEO project", icon = icon("file-export"))
   })
-
+  
   ##################################################################################################################################
   ############### Turn off progress bar
   
