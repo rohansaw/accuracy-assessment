@@ -1938,9 +1938,9 @@ shinyServer(function(input, output, session) {
     req(v$done == "done")
     req(CEfile())
     ce <- CEfile()
-    ceo <- ce[,c("XCoordinate","YCoordinate","id"#,"map_class","elevation","slope","aspect","region","country"
+    ceo <- ce[,c("XCoordinate","YCoordinate","id","map_class"#, "elevation","slope","aspect","region","country"
     )]
-    names(ceo) <- c("LON","LAT","PLOTID"#,"map_class","elevation","slope","aspect","region","country"
+    names(ceo) <- c("LON","LAT","PLOTID","map_class" #,"elevation","slope","aspect","region","country"
     )
     ceo$LON <- as.numeric(ceo$LON)
     ceo$LAT <- as.numeric(ceo$LAT)
@@ -1982,13 +1982,45 @@ shinyServer(function(input, output, session) {
   ############### Enable to download the CEO file (csv)
   output$download_CEO <- downloadHandler(
     filename = function() {
-      paste(input$basename_CE, "_ceo.csv", sep = "")
+      paste(input$basename_CE, "_ceo_sampling_design.zip", sep = "")
     },
-    content  = function(xxx) {
-      to_export <- ceo_file()
-      write.csv(ceo_file(), xxx, row.names = FALSE)
+    content = function(zipfile) {
+      # Create temporary files for CEO and area data
+      temp_dir <- tempdir()  # Temporary directory for files
+      ceo_file_name <- file.path(temp_dir, paste0(input$basename_CE, "_CEO_Samples.csv"))
+      area_file_name <- file.path(temp_dir, paste0(input$basename_CE, "_Area.csv"))
+      
+      shuffled_ceo <- ceo_file()[sample(nrow(ceo_file())), ]
+      
+      # Write the CEO file with a proper name
+      write.csv(shuffled_ceo, ceo_file_name, row.names = FALSE)
+      
+      # Write the Area file with a proper name
+      write.csv(maparea_final(), area_file_name, row.names = FALSE)
+      
+      # Bundle the files into a zip
+      zip(zipfile, files = c(ceo_file_name, area_file_name), flags = "-j")
     }
   )
+
+  # output$download_CEO <- downloadHandler(
+  #   filename = function() {
+  #     paste(input$basename_CE, "_ceo.csv", sep = "")
+  #   },
+  #   content  = function(xxx) {
+  #     to_export <- ceo_file()
+  #     write.csv(ceo_file(), xxx, row.names = FALSE)
+  #   }
+  # )
+  # 
+  # output$downloadArea <- downloadHandler(
+  #   filename = function() {
+  #     paste('maparea_', Sys.Date(), '.csv', sep = '')
+  #   },
+  #   content  = function(file) {
+  #     write.csv(maparea_final(), file, row.names = F)
+  #   }
+  # )
   
   ##################################################################################################################################
   ############### Button to download the CE file (cep)

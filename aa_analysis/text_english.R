@@ -32,7 +32,7 @@ output$t4_b4_button        <- reactive({"Do you want to filter the data?"})
 output$field_choose_col_ref <- reactive({'Choose the column with the reference data information (The annotated labels)'})
 output$field_choose_col_map <- reactive({'Choose the column with the map data information (The original map labels)'})
 output$field_choose_col_map_area <- reactive({'Choose the map area column from the area file'})
-output$field_choose_col_ref_area <- reactive({'Choose the class column from the area file (Ensure classes match reference/map labels)'})
+output$field_choose_col_ref_area <- reactive({'Choose the class column (map_code) from the area file (Ensure classes match reference/map labels)'})
 
 ############################ PROCESSING MESSAGES
 

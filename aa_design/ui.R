@@ -407,24 +407,29 @@ shinyUI(
                     #   )
                     # ),
                     
-                    selectizeInput(
-                      'nb_groups',
-                      textOutput('t6_b2_button2'),
-                      
-                      choices = 1:25,
-                      options = list(
-                        placeholder = textOutput('t6_b2_button2_field'),
-                        onInitialize = I('function() { this.setValue(1); }')
+                    div(
+                      style = "display: none;", # Apply style to hide the input
+                      selectizeInput(
+                        'nb_groups',
+                        textOutput('t6_b2_button2'),
+                        choices = 1:25,
+                        options = list(
+                          placeholder = textOutput('t6_b2_button2_field'),
+                          onInitialize = I('function() { this.setValue(1); }')
+                        )
                       )
                     ),
                     
-                    selectizeInput(
-                      'box_size',
-                      textOutput('t6_b2_button3'),
-                      choices = c(30,50,70,90,100,140),
-                      options = list(
-                        placeholder = '',
-                        onInitialize = I('function() { this.setValue(30); }')
+                    div(
+                      style = "display: none;", # Apply style to hide the input
+                      selectizeInput(
+                        'box_size',
+                        textOutput('t6_b2_button3'),
+                        choices = c(30, 50, 70, 90, 100, 140),
+                        options = list(
+                          placeholder = '',
+                          onInitialize = I('function() { this.setValue(30); }')
+                        )
                       )
                     ),
                     
@@ -434,7 +439,7 @@ shinyUI(
                     
                     uiOutput("ui_download_CEO"),
                     br(),
-                    uiOutput("ui_download_CEP"),
+                    #uiOutput("ui_download_CEP"),
                     br(),
                     # uiOutput("ui_download_CE"),
                     # br(),
