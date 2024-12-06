@@ -138,10 +138,10 @@ shinyServer(function(input, output, session) {
       'jpeg2000',
       'grd',
       'vrt',
-      'hdf',
-      'shp',
-      'sqlite',
-      'gdb'
+      'hdf'
+      # 'shp',
+      # 'sqlite',
+      # 'gdb'
     ),
     roots = volumes,
     session = session,
@@ -151,30 +151,26 @@ shinyServer(function(input, output, session) {
   
   ##################################################################################################################################
   ############### Find out map type and store the variable
-  mapType <- reactive({
-    print('Check: mapType')
-    
+ mapType <- reactive({
     req(input$file)
-    raster_type <-
-      c('tif', 'img', 'pix', 'rst', 'jpeg2000', 'grd', 'hdf','vrt')
-    vector_type <- c('shp', 'sqlite','gdb')
-    
+    raster_type <- c('tif', 'img', 'pix', 'rst', 'jpeg2000', 'grd', 'vrt', 'hdf')
+
     df <- parseFilePaths(volumes, input$file)
     file_path <- as.character(df[, "datapath"])
     ending <- str_sub(file_path, -3)
-    print(paste0('File extension is : ', ending))
+    print(ending)
     if (ending %in% raster_type) {
-      mapType <- 'raster_type'
-    } else
-      if (ending %in% vector_type) {
-        mapType <- 'vector_type'
-      }
-    mapType
+      'raster_type'
+    } else {
+      NULL
+    }
   })
   
   ################################# Display the file path
   output$filepath <- renderPrint({
-    validate(need(input$file, "Missing input: Please select the map file"))
+    validate(
+      need(input$file, "Missing input: Please select the map file")
+    )
     
     df <- parseFilePaths(volumes, input$file)
     file_path <- as.character(df[, "datapath"])
@@ -254,38 +250,15 @@ shinyServer(function(input, output, session) {
   ############### Read the input raster or vector data under reactive variable 'lcmap'
   lcmap <- reactive({
     print("Check: lcmap")
-    
-    ############### Read the name chosen from dropdown menu
-    ############### Load the raster corresponding to the selected name
-    ## raster
-    if (mapType() == "raster_type") {
-      req(input$file)
-      withProgress(message = 'Reading the map file',
-                   value = 0,
-                   {
-                     setProgress(value = .1)
-                     df <- parseFilePaths(volumes, input$file)
-                     file_path <- as.character(df[, "datapath"])
-                     lcmap <- rast(file_path)
-                   })
-    } else{
-      ## vector
-      if (mapType() == "vector_type") {
-        req(input$file)
-        df <- parseFilePaths(volumes, input$file)
-        file_path <- as.character(df[, "datapath"])
-        basen <-
-          substr(basename(file_path), 0, nchar(basename(file_path)) - 4)
-        direc <- dirname(file_path)
-        
-        withProgress(message = 'Reading the shapefile',
-                     value = 0,
-                     {
-                       setProgress(value = .1)
-                       lcmap <- st_read(direc, basen)
-                     })
-      }
-    }
+    req(mapType() == "raster_type", input$file)
+    withProgress(message = 'Reading the map file',
+                 value = 0,
+                 {
+                   setProgress(value = .1)
+                   df <- parseFilePaths(volumes, input$file)
+                   file_path <- as.character(df[, "datapath"])
+                   lcmap <- rast(file_path)
+                 })
   })
   
   
@@ -401,37 +374,37 @@ shinyServer(function(input, output, session) {
   ##################################################################################################################################
   ############### Read the attribute of the shapefile
   # Display the data in the shapefile as a Data Table
-  output$select_vars_vector <- renderUI({
-    req(mapType() == "vector_type")
-    selectInput(
-      'show_vars2',
-      'Columns to show:',
-      choices = names(lcmap()),
-      multiple = TRUE
-    )
-  })
+  # output$select_vars_vector <- renderUI({
+  #   req(mapType() == "vector_type")
+  #   selectInput(
+  #     'show_vars2',
+  #     'Columns to show:',
+  #     choices = names(lcmap()),
+  #     multiple = TRUE
+  #   )
+  # })
   
   # Display the shapefile data based on the columns selected to display
-  output$dataTableUI_vector <- renderDataTable({
-    req(mapType() == "vector_type", input$show_vars2)
-    lcmap <- as.data.frame(lcmap())
-    lcmap[, input$show_vars2, drop = FALSE]
-  })
+  # output$dataTableUI_vector <- renderDataTable({
+  #   req(mapType() == "vector_type", input$show_vars2)
+  #   lcmap <- as.data.frame(lcmap())
+  #   lcmap[, input$show_vars2, drop = FALSE]
+  # })
   
   # The user can select which column has the class attribute information from the shapefile
-  output$selectUI_class_vector <- renderUI({
-    req(mapType() == "vector_type")
-    shp <- lcmap()
-    st_geometry(shp)<-"geometry"
-    col_names<- names(shp)
-    categories <- col_names[col_names != "geometry"]
-    selectInput(
-      "class_attribute_vector",
-      label = h5(textOutput("field_col_map_attr_value")),
-      choices = categories,
-      multiple = FALSE
-    )
-  })
+  # output$selectUI_class_vector <- renderUI({
+  #   req(mapType() == "vector_type")
+  #   shp <- lcmap()
+  #   st_geometry(shp)<-"geometry"
+  #   col_names<- names(shp)
+  #   categories <- col_names[col_names != "geometry"]
+  #   selectInput(
+  #     "class_attribute_vector",
+  #     label = h5(textOutput("field_col_map_attr_value")),
+  #     choices = categories,
+  #     multiple = FALSE
+  #   )
+  # })
   
   
   
@@ -452,25 +425,26 @@ shinyServer(function(input, output, session) {
   # })
   
   # The user can select which column has the area information from the shapefile
-  output$selectUI_area_vector <- renderUI({
-    req(mapType() == "vector_type", input$IsManualAreaVector == T)
-    shp <- lcmap()
-    st_geometry(shp)<-"geometry"
-    col_names <- names(shp)
-    categories <- col_names[col_names != "geometry"]
-    selectInput(
-      "area_attribute2",
-      label = h5(textOutput("field_colarea_attr_value")),
-      choices = categories,
-      multiple = FALSE
-    )
-  })
+  # output$selectUI_area_vector <- renderUI({
+  #   req(mapType() == "vector_type", input$IsManualAreaVector == T)
+  #   shp <- lcmap()
+  #   st_geometry(shp)<-"geometry"
+  #   col_names <- names(shp)
+  #   categories <- col_names[col_names != "geometry"]
+  #   selectInput(
+  #     "area_attribute2",
+  #     label = h5(textOutput("field_colarea_attr_value")),
+  #     choices = categories,
+  #     multiple = FALSE
+  #   )
+  # })
   
   
   ##################################################################################################################################
   ############### Insert the Area calculation button
   output$IsAreaCalc <- renderUI({
-    validate(need(input$file, "Missing input: Please select the map file in the previous step."))
+    validate(need(input$file, "Missing input: Please select the map file in the previous step."),
+             need(mapType() == "raster_type", "Ensure you provided a valid raster input type."))
     actionButton('areaCalcButton', textOutput('t3_b1_button'))
   })
   
@@ -940,6 +914,10 @@ shinyServer(function(input, output, session) {
         input$submitLegend,
         ""
       ),
+      need(
+        input$areaCalcButton,
+        ""
+      )
     )
     
     df <- strat_sample()
@@ -989,6 +967,10 @@ shinyServer(function(input, output, session) {
   output$adjust_sampling_ui <- renderUI({
     validate(
       need(input$file, "Missing input: Please select the map file"),
+      need(
+        input$areaCalcButton,
+        "Click on area calculation and legend generation in the previous step first"
+      ),
       need(
         input$submitLegend,
         "Click on submit legend in tab 2 'Map areas'"
@@ -1090,8 +1072,6 @@ shinyServer(function(input, output, session) {
           mutate(original_classes = as.numeric(original_classes)) %>%
           as.matrix()
         
-        print(reclass_table)
-        
         # Apply reclassification to the map in memory
         map <- classify(map, rcl = reclass_table)
         
@@ -1110,12 +1090,6 @@ shinyServer(function(input, output, session) {
                      })
         names(rand_sample) <- c("x_coord", "y_coord", "map_code")
         rand_sample$id     <- row(rand_sample)[, 1]
-        
-        print(colnames(rp))
-        print("------")
-        print(colnames(rand_sample))
-        print("------")
-        print(str(data.frame(table(rand_sample$map_code))))
         
         rp2 <-
           merge(

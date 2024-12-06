@@ -217,10 +217,10 @@ shinyUI(
                                        uiOutput("selectUI_value_raster"),
                                        uiOutput("selectUI_area_raster"),
                                        
-                                       uiOutput("selectUI_class_vector"),
-                                       uiOutput("selectUI_mmu_vector"),
-                                       uiOutput("selectUI_res_vector"),
-                                       uiOutput("selectUI_area_vector"),
+                                       #uiOutput("selectUI_class_vector"),
+                                       #uiOutput("selectUI_mmu_vector"),
+                                       #uiOutput("selectUI_res_vector"),
+                                       #uiOutput("selectUI_area_vector"),
                                        
                                        htmlOutput('t2_b4_body')
                                    )
@@ -236,9 +236,9 @@ shinyUI(
                                        htmlOutput('t2_b5_body'),
                                        
                                        uiOutput('select_vars_raster'),
-                                       uiOutput('select_vars_vector'),
+                                       #uiOutput('select_vars_vector'),
                                        dataTableOutput('dataTable_rasterCSV'),
-                                       dataTableOutput('dataTableUI_vector')
+                                       #dataTableOutput('dataTableUI_vector')
                                    )
                   )
                 )
@@ -247,15 +247,15 @@ shinyUI(
         ####################################################################################
         # New Tab
         tabItem(tabName = 'Mapareas',
-                #fluidRow(
+                fluidRow(
                   ####################################################################################
                   # New box
                   box(title= textOutput('t3_b1_title'), 
                       status = "success", 
                       solidHeader= TRUE,
                       htmlOutput('t3_b1_body'),
-                      uiOutput("IsAreaCalc")#,
-                      #uiOutput("UIDisplayMap")
+                      uiOutput("IsAreaCalc"),
+                      uiOutput("UIDisplayMap")
                   ),
                   
                   ####################################################################################
@@ -282,13 +282,13 @@ shinyUI(
                   
                   # ####################################################################################
                   # # New box
-                  # conditionalPanel("is.null(input.IsDisplayMap)==F",
-                  #                  box(
-                  #                    title= textOutput('t3_b4_title'), status = "success", solidHeader= TRUE, 
-                  #                    leafletOutput('theinputmap')
-                  #                  )
-                  # )
-                #)
+                  conditionalPanel("is.null(input.IsDisplayMap)==F",
+                                   box(
+                                     title= textOutput('t3_b4_title'), status = "success", solidHeader= TRUE,
+                                     leafletOutput('theinputmap')
+                                   )
+                  )
+                )
         ),
         ####################################################################################
         # New Tab
