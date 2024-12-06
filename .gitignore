@@ -7,3 +7,5 @@
 # R data files from past sessions
 .Rdata
 aa_design/server.R
+aa_design/.Rdata
+

@@ -72,22 +72,22 @@ shinyServer(function(input, output, session) {
   ##################### Choose language option             ###########################
   ####################################################################################
   output$chosen_language <- renderPrint({
-    if (input$language == "English") {
+    #if (input$language == "English") {
       source("text_english.R",
              local = TRUE,
              encoding = "UTF-8")
       #print("en")
-    }
-    if (input$language == "Français") {
-      source("text_french.R", local = TRUE, encoding = "UTF-8")
-      #print("fr")
-    }
-    if (input$language == "Español") {
-      source("text_spanish.R",
-             local = TRUE,
-             encoding = "UTF-8")
-      #print("sp")
-    }
+    # }
+    # if (input$language == "Français") {
+    #   source("text_french.R", local = TRUE, encoding = "UTF-8")
+    #   #print("fr")
+    # }
+    # if (input$language == "Español") {
+    #   source("text_spanish.R",
+    #          local = TRUE,
+    #          encoding = "UTF-8")
+    #   #print("sp")
+    # }
   })
   
   ####################################################################################
@@ -526,6 +526,9 @@ shinyServer(function(input, output, session) {
   ################ Matrix for all classes
   #################################################################################################
   matrix_all <- reactive({
+    print(legend_ref())
+    print("----------")
+    print(legend_i())
     validate(need(
       all(legend_ref() %in% legend_i()),
       "Mismatch between reference and map names in validation file"
@@ -709,6 +712,15 @@ shinyServer(function(input, output, session) {
       
       ### Integration of all elements into one dataframe
       for (i in 1:length(legend)) {
+        print("IIIIII")
+        print(confusion[i, ]$class  )
+        print("-------")
+        print(input$selectClassCol)
+        print("-----------")
+        print(legend[i])
+        print("----------")
+        print(areas[areas[, input$selectClassCol] == legend[i], input$selectClassCol])
+        print("ZZZZZZZZZ")
         confusion[i, ]$class                          <-
           areas[areas[, input$selectClassCol] == legend[i], input$selectClassCol]
         confusion[i, ]$code                           <-
@@ -768,7 +780,11 @@ shinyServer(function(input, output, session) {
         "Missing input: Please select the area file in tab '1:Input'"
       )
     )
-    
+    print("AAA")
+    print(legend_i())
+    print("BBBB")
+    print(areas[, input$selectClassCol])
+    print("--------")
     validate(need(
       all(legend_i()  %in% areas[, input$selectClassCol]),
       "Mismatch between class names in area and validation file"

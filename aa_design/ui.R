@@ -79,18 +79,19 @@ shinyUI(
                   
                   ####################################################################################
                   # New box
-                  box(
-                    title= textOutput('t1_b0_title'), status = "success", solidHeader= TRUE,
-                    selectInput(
-                      'language','',choices = c("English","Français","Español")),
-                    uiOutput("chosen_language")
-                  ),
+                  # box(
+                  #   title= textOutput('t1_b0_title'), status = "success", solidHeader= TRUE,
+                  #   selectInput(
+                  #     'language','',choices = c("English","Français","Español")),
+                  #   
+                  # ),
                   
                   ####################################################################################
                   # New box
                   box(
                     title= textOutput('t1_b1_title'), status = "success", solidHeader= TRUE,
-                    htmlOutput('t1_b1_body')
+                    htmlOutput('t1_b1_body'),
+                    uiOutput("chosen_language")
                   ),
                   
                   ####################################################################################
@@ -246,14 +247,13 @@ shinyUI(
         ####################################################################################
         # New Tab
         tabItem(tabName = 'Mapareas',
-                fluidRow(
+                #fluidRow(
                   ####################################################################################
                   # New box
                   box(title= textOutput('t3_b1_title'), 
                       status = "success", 
                       solidHeader= TRUE,
                       htmlOutput('t3_b1_body'),
-                      uiOutput("MapAreaCalcOption"),
                       uiOutput("IsAreaCalc")#,
                       #uiOutput("UIDisplayMap")
                   ),
@@ -288,7 +288,7 @@ shinyUI(
                   #                    leafletOutput('theinputmap')
                   #                  )
                   # )
-                )
+                #)
         ),
         ####################################################################################
         # New Tab
@@ -300,18 +300,13 @@ shinyUI(
                     title = textOutput('t4_b1_title'), 
                     status = "success", 
                     solidHeader = TRUE,
-                    collapsible = TRUE,
-                    collapsed = TRUE,
                     htmlOutput('t4_b1_body'),
-                    tags$ul(
-                      tags$li("Specify the User Accuracy (UA) for each map class.")
-                    )
                   ),
                   
                   ####################################################################################
                   # User Accuracy Inputs
                   box(
-                    title = h4(textOutput('t4_b2_title')),
+                    title = textOutput('t4_b2_title'),
                     status = "success", 
                     solidHeader = TRUE,
                     uiOutput("UAInputs") # Dynamically generated user accuracy inputs
@@ -348,6 +343,11 @@ shinyUI(
                       br(),
                       htmlOutput("overall_sampling_size"),
                       tableOutput("sampling_table"),
+                      textInput("basename_sampling", 
+                                label = h3(textOutput('basename_sampling_field')),                                      
+                                value = paste("sampling_",Sys.Date(),sep="")),
+                      downloadButton('download_sampling', 
+                                     label=textOutput('download_sampling_button'))
   
                   ),
                   
@@ -359,11 +359,6 @@ shinyUI(
                     h4("Adjust the 'Final' Values for Each Stratum"),
                     br(),
                     uiOutput("adjust_sampling_ui"), # Dynamic UI for adjustment
-                    textInput("basename_sampling", 
-                              label = h3(textOutput('basename_sampling_field')),                                      
-                              value = paste("sampling_",Sys.Date(),sep="")),
-                    downloadButton('download_sampling', 
-                                   label=textOutput('download_sampling_button'))
                   ),
                   
                   
@@ -441,8 +436,8 @@ shinyUI(
                     br(),
                     uiOutput("ui_download_CEP"),
                     br(),
-                    uiOutput("ui_download_CE"),
-                    br(),
+                    # uiOutput("ui_download_CE"),
+                    # br(),
                     #uiOutput("ui_download_SHP"),
                     #br(),
                     #uiOutput("ui_export_CEO"),

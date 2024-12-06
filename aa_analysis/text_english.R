@@ -29,10 +29,10 @@ output$t4_b4_button        <- reactive({"Do you want to filter the data?"})
 
 
 ############################ SERVER FIELDS
-output$field_choose_col_ref <- reactive({'Choose the column with the reference data information'})
-output$field_choose_col_map <- reactive({'Choose the column with the map data information'})
+output$field_choose_col_ref <- reactive({'Choose the column with the reference data information (The annotated labels)'})
+output$field_choose_col_map <- reactive({'Choose the column with the map data information (The original map labels)'})
 output$field_choose_col_map_area <- reactive({'Choose the map area column from the area file'})
-output$field_choose_col_ref_area <- reactive({'Choose the class column from the area file'})
+output$field_choose_col_ref_area <- reactive({'Choose the class column from the area file (Ensure classes match reference/map labels)'})
 
 ############################ PROCESSING MESSAGES
 
@@ -106,11 +106,12 @@ output$t2_b1_title    <- reactive({"Select input files"})
 
 output$t2_b1_body  <- reactive({
   HTML(paste0(
-    "Two files are necessary: <br/>
-- The validation file must contain a column with the classified reference data and a
-    column with the original map data. <br/>
-- The area file should contain the map areas and the corresponding map class. <br/>
-    The area file can be generated in the Stratified Estimator Sampling Design application."
+    "Two .csv files are necessary: <br/>
+- <strong>The validation file</strong> must contain a column with the classified reference data and a
+    column with the original map data. The classified reference data are the labels the annotators gave the samples.<br/>
+- <strong>The area file</strong> should contain columns for the map areas and the corresponding map class. <br/>
+    The area file can be generated in the Stratified Estimator Sampling Design application. <br/> <br/>
+    Ensure the CSVs are correctly formated and do not have empty rows in the end."
     ))})
 
 

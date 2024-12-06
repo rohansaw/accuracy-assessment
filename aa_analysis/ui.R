@@ -71,18 +71,19 @@ shinyUI(
                   
                   ####################################################################################
                   # New box
-                  box(
-                    title= textOutput('t1_b0_title'), status = "success", solidHeader= TRUE,
-                    selectInput(
-                      'language','',choices = c("English","Français","Español")),
-                    uiOutput("chosen_language")
-                  ),
+                  # box(
+                  #   title= textOutput('t1_b0_title'), status = "success", solidHeader= TRUE,
+                  #   # selectInput(
+                  #   #   'language','',choices = c("English","Français","Español")),
+                  #   # uiOutput("chosen_language")
+                  # ),
                   
                   ####################################################################################
                   # New box
                   box(
                     title= textOutput('t1_b1_title'), status = "success", solidHeader= TRUE,
-                    htmlOutput('t1_b1_body')
+                    htmlOutput('t1_b1_body'),
+                    uiOutput("chosen_language")
                   ),
                   
                   ####################################################################################

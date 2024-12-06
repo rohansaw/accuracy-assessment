@@ -188,7 +188,8 @@ The columns are read from the shapefile database or the CSV with the raster area
 output$t3_b1_title  <- reactive({"Area calculation"})
 
 output$t3_b1_body   <- reactive({HTML(paste0(
-  "Map areas are calculated by counting the frequency of the pixels for 
+  "<h3><strong>Important: Ensure the map is equal area projected!</strong></h3>
+  Map areas are calculated by counting the frequency of the pixels for 
 each map class or by summing the areas of all the polygons.<br/>
   If using raster data the map area can be calculated using R or Open Foris Geospatial Toolkit (OFT).<br/>
   R is compatible with all systems and OFT is only compatible with Linux.<br/>
@@ -229,11 +230,17 @@ output$t3_b4_title  <- reactive({"Display map "})
 output$t4_b1_title  <- reactive({"What are the expected accuracies?"})
 
 output$t4_b1_body  <- reactive({HTML(paste0(
-"Some classes are identified easier than other classes. <br/>
-Usually common classes, which occupy the majority of the map, are the easiest to identify. <br/>
+"Some classes are identified easier than other classes. Usually common classes, which occupy the majority of the map, are the easiest to identify.
 Rare classes, such as land change classes, which occupy a small portion of the map area, 
-can be very difficult to identify.
-This measure will influence the overall sample size. <br/>
+can be very difficult to identify.<br/>
+
+User Accuracy (UA) measures the confidence that a map class is correctly identified. 
+By acknowledging that some classes are easier to validate than others,
+setting UA per class ensures more focus on challenging classes while avoiding over-sampling for simpler ones.<br/>
+
+This measure will influence the overall sample size. In general,
+it is reccomend to set higher UA for easier classes that occupy larger areas of the map. <br/>
+
 More classes with lower confidence will increase the overall sample size"
 ))})
 

@@ -70,22 +70,9 @@ shinyServer(function(input, output, session) {
   ##################### Choose language option             ###########################
   ####################################################################################
   output$chosen_language <- renderPrint({
-    if (input$language == "English") {
-      source("text_english.R",
-             local = TRUE,
-             encoding = "UTF-8")
-      #print("en")
-    }
-    if (input$language == "Français") {
-      source("text_french.R", local = TRUE, encoding = "UTF-8")
-      #print("fr")
-    }
-    if (input$language == "Español") {
-      source("text_spanish.R",
-             local = TRUE,
-             encoding = "UTF-8")
-      #print("sp")
-    }
+    source("text_english.R",
+           local = TRUE,
+           encoding = "UTF-8")
   })
   
   ##################################################################################################################################
@@ -483,26 +470,8 @@ shinyServer(function(input, output, session) {
   ##################################################################################################################################
   ############### Insert the Area calculation button
   output$IsAreaCalc <- renderUI({
+    validate(need(input$file, "Missing input: Please select the map file in the previous step."))
     actionButton('areaCalcButton', textOutput('t3_b1_button'))
-  })
-  
-  ##################################################################################################################################
-  ############### Setup whether Calculation of area in raster mode should be done with R or OFT
-  output$MapAreaCalcOption <- renderUI({
-    validate(need(input$file, "Missing input: Please select the map file"))
-    req(mapType() == "raster_type", input$IsManualAreaRaster != T)
-    
-    if (osSystem == "Linux"){
-      list_calc <- list("OFT" = "oft","R" = "r")
-    }
-    
-    if (osSystem == "Windows") {
-      list_calc <- list("R" = "r")
-    }
-    
-    isolate(radioButtons("rasterarea", label = "", #"What type of area calculation will you use?",
-                         choices = list_calc))
-    
   })
   
   
@@ -514,10 +483,12 @@ shinyServer(function(input, output, session) {
     req(mapType() == "raster_type")
     req(input$areaCalcButton)
     
+    osSystem <- Sys.info()["sysname"]
+    
     ############### If areas are calculated (not imported through csv)
     if (input$IsManualAreaRaster != T) {
       ############### Use OFT to compute the areas
-      if (input$rasterarea == "oft") {
+      if (osSystem == "Linux") {
         print("Computing frequency values using OFT")
         
         withProgress(message = 'Computing frequency values using OFT',
@@ -585,7 +556,7 @@ shinyServer(function(input, output, session) {
       }
       
       ############### Use R to compute the areas
-      if (input$rasterarea == "r") {
+      if (osSystem != "Linux") {
         ## Use R to compute the areas
         print("Computing frequency values using R")
         lcmap <- lcmap()
@@ -717,13 +688,13 @@ shinyServer(function(input, output, session) {
   
   ## A user interface for each map_code and text prefilled with  map_edited_class which can be edited
   output$LegendInputs <- renderUI({
-    req(input$areaCalcButton)
     validate(
       need(
         input$areaCalcButton,
         "Click on Area calculation and legend generation to display and edit the map classes"
       )
     )
+    req(input$areaCalcButton)
     mapareatable_reactive <- mapareatable_reactive()
     ids <- as.factor(as.matrix(mapareatable_reactive$map_code))
     print(ids)
@@ -880,7 +851,19 @@ shinyServer(function(input, output, session) {
   ##################################################################################################################################
   ############### Select User's Accuracy for the different classes
   output$UAInputs <- renderUI({
+    validate(
+      need(
+        input$areaCalcButton,
+        "Click on area calculation and legend generation in the previous step first"
+      ),
+      #textOutput("missing_calc_legend "),
+      need(
+        input$submitLegend,
+        "Click on submit legend in the previous step before continuing"
+      )#textOutput("missing_legend ")
+    )
     req(input$submitLegend)
+   
     maparea <- maparea_final()
     categories <- as.list(unique(maparea$map_edited_class))
     
@@ -937,6 +920,7 @@ shinyServer(function(input, output, session) {
     maparea$adjusted <- maparea$adjprop * (overallsample - sum(maparea$min, na.rm = T))
     maparea$adjusted[maparea$adjusted < minimum_ssize] <- minimum_ssize
     maparea$adjusted <- floor(maparea$adjusted)
+    maparea$final_unadjusted    <- maparea$adjusted
     maparea$final    <- maparea$adjusted
     write.csv(maparea, paste0(outdir(), "/sampling.csv"), row.names = F)
     # write.csv(maparea[, c("map_code", "map_area", "map_edited_class", "equal", "proportional","adjusted","final")], paste0(outdir(), "/manual_sampling.csv"), row.names =
@@ -951,15 +935,11 @@ shinyServer(function(input, output, session) {
     print('Check: output$overall_sampling_size')
     
     validate(
-      need(input$file, "Missing input: Please select the map file"),
+      need(input$file, ""),
       need(
         input$submitLegend,
-        "Click on submit legend in tab 2 'Map areas'"
+        ""
       ),
-      # need(
-      #   input$cat_hi,
-      #   "Select the classes to include with high and low confidence in the previous tab"
-      # )
     )
     
     df <- strat_sample()
@@ -986,38 +966,34 @@ shinyServer(function(input, output, session) {
   
   ##################################################################################################################################
   ############### Determine whether final sampling is automatic or manual
-  final_sampling <- reactive({
-    # if (input$IsManualSampling == T) {
-    #   # validate(
-    #   #   need(input$ManualSamplingFile, "Missing input: Select a file with the manual sampling points before continuing or unselect 'Do you want to modify the sampling size?'")
-    #   # )
-    #   
-    #   df <-
-    #     read.csv(paste(outdir(), "/", "manual_sampling.csv", sep = ""),
-    #              header = T)
-    #   #df<-read.csv(paste(outdir(),"/",input$ManualSamplingFile$name,sep=""),header = T)
-    # } else{
-    df <- strat_sample()
-    df <- df[, c("map_code", "map_area", "map_edited_class", "equal", "proportional","adjusted","final")]
-    #}
-    
-  })
-  
-  ##################################################################################################################################
-  ############### Display the results of sampling within the UI
-  output$sampling_table <- renderTable({
-    print('Check: output$sampling_table')
-    df <- final_sampling()
-    df <- df[, c("map_edited_class", "proportional", "adjusted", "final")]
-    names(df) <- c('Map Class', 'Proportional', 'Adjusted', 'Final')
-    df
-  },
-  include.rownames = FALSE, digits = 0)
+  # final_sampling <- reactive({
+  #   # if (input$IsManualSampling == T) {
+  #   #   # validate(
+  #   #   #   need(input$ManualSamplingFile, "Missing input: Select a file with the manual sampling points before continuing or unselect 'Do you want to modify the sampling size?'")
+  #   #   # )
+  #   #   
+  #   #   df <-
+  #   #     read.csv(paste(outdir(), "/", "manual_sampling.csv", sep = ""),
+  #   #              header = T)
+  #   #   #df<-read.csv(paste(outdir(),"/",input$ManualSamplingFile$name,sep=""),header = T)
+  #   # } else{
+  #   df <- strat_sample()
+  #   df <- df[, c("map_code", "map_area", "map_edited_class", "equal", "proportional","adjusted","final")]
+  #   #}
+  #   
+  # })
   
   ##################################################################################################################################
   ############### Allow manually refining num samples per stratum
   
   output$adjust_sampling_ui <- renderUI({
+    validate(
+      need(input$file, "Missing input: Please select the map file"),
+      need(
+        input$submitLegend,
+        "Click on submit legend in tab 2 'Map areas'"
+      ),
+    )
     df <- strat_sample()
     if (is.null(df)) return(NULL)
     
@@ -1040,9 +1016,29 @@ shinyServer(function(input, output, session) {
     maparea$final <- sapply(1:nrow(maparea), function(i) {
       input[[paste0("adjusted_final_", i)]]
     })
-    
+    write.csv(maparea, paste0(outdir(), "/sampling.csv"), row.names = F)
     maparea
   })
+  
+  ##################################################################################################################################
+  ############### Display the results of sampling within the UI
+  output$sampling_table <- renderTable({
+    validate(
+      need(input$file, "Missing input: Please select the map file"),
+      need(
+        input$submitLegend,
+        "Click on submit legend in tab 2 'Map areas'"
+      ),
+    )
+    print('Check: output$sampling_table')
+    df <- strat_sample_adjusted()
+    df <- df[, c("map_edited_class", "eua", "proportional", "adjusted", "final_unadjusted", "final")]
+    names(df) <- c('Map Class', 'UA', 'Proportional', 'Min-Adjusted', 'Final Computed', 'Final Custom')
+    df
+  },
+  include.rownames = FALSE, digits = 0)
+  
+  
   
   
   ##################################################################################################################################
