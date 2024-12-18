@@ -1,0 +1,23 @@
+proxy:
+  port: 8080
+  authentication: simple
+  admin-groups: admins
+  users:
+    - name: admin
+      password: "<CHANGEME>xYz67812mn123!!hhj"
+      groups: admins
+    - name: user1
+      password: "superSecretAndVerySecurePs55wrd"
+      groups: users
+  docker:
+    internal-networking: true
+    network: shinyproxy-network
+  specs:
+    - id: shinyapp1
+      display-name: Sampling and Response Design
+      container-cmd: ["R", "-e", "shiny::runApp('/srv/shiny-server/design', host='0.0.0.0', port=3838)"]
+      container-image: shinyapp1:latest
+    - id: shinyapp2
+      display-name: Unbiased Area Estimation Analysis
+      container-cmd: ["R", "-e", "shiny::runApp('/srv/shiny-server/analysis', host='0.0.0.0', port=3838)"]
+      container-image: shinyapp2:latest

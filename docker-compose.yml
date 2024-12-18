@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  shinyproxy:
+    build:
+      context: .
+    container_name: shinyproxy
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Allows ShinyProxy to manage containers
+    depends_on:
+      - shinyapp1
+      - shinyapp2
+    networks:
+      - shiny-network
+
+  shinyapp1:
+    build:
+      context: ./aa_design
+    container_name: shinyapp1
+    expose:
+      - "3838"
+    networks:
+      - shiny-network
+
+  shinyapp2:
+    build:
+      context: ./aa_analysis
+    container_name: shinyapp2
+    expose:
+      - "3838"
+    networks:
+      - shiny-network
+
+networks:
+  shiny-network:
+    driver: bridge

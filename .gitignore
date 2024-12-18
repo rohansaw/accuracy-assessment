@@ -9,3 +9,6 @@
 aa_design/server.R
 aa_design/.Rdata
 
+shinyproxy.jar
+.RData
+shinyproxy.log

@@ -169,12 +169,26 @@ shinyUI(
                   # New box
                   box(title= textOutput('t2_b1_title'), status = "success", solidHeader= TRUE,
                       htmlOutput('t2_b1_body'),
-                      shinyFilesButton(id = 'file',
-                                       label = "Input",  #htmlOutput('t2_b1_button'), TO TRY TO IMPLEMENT
-                                       title = "Browse", #htmlOutput('select_a_file'),
-                                       multiple = FALSE),
                       br(),
-                      textOutput("filepath")
+                      
+                      fileInput("file", "Upload Raster File",
+                        accept = c('.tif', '.img', '.pix', '.rst', '.jpeg2000', '.grd', '.vrt', '.hdf')),
+
+                      # File input for shapefile (compressed as a ZIP file)
+                      fileInput("shapefile", "Upload Shapefile (zip)",
+                                accept = c('zip')),
+
+                      # shinyFilesButton(id = 'file',
+                      #                  label = "Raster Map",  #htmlOutput('t2_b1_button'), TO TRY TO IMPLEMENT
+                      #                  title = "Browse", #htmlOutput('select_a_file'),
+                      #                  multiple = FALSE),
+                      # shinyFilesButton(id = 'shapefile',
+                      #                  label = "Mask Shapefile",  #htmlOutput('t2_b1_button'), TO TRY TO IMPLEMENT
+                      #                  title = "Browse", #htmlOutput('select_a_file'),
+                      #                  multiple = FALSE),
+                      br(),
+                      textOutput("filepath"),
+                      textOutput("shapefilePath")
                   ),
                   
                   ####################################################################################
@@ -331,7 +345,7 @@ shinyUI(
                       #no data value in the map
                       numericInput("minsample", 
                                    label = textOutput('t5_b1_mss'),
-                                   value = 100),
+                                   value = 10),
                       
                       # checkboxInput("IsManualSampling",label=textOutput('t5_b1_modify'))
                       #,htmlOutput("selectManualSampling")
@@ -386,8 +400,10 @@ shinyUI(
                   box(
                     title= textOutput('t6_b1_title'), status = "success", solidHeader= TRUE,
                     htmlOutput('t6_b1_body'),
+                    br(),
                     actionButton("submitResponse",textOutput('t6_b1_button')),
-                    
+                    br(),
+                    br(),
                     leafletOutput("plotxy") 
                   ),
                   

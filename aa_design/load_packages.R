@@ -17,6 +17,7 @@ packages(lwgeom)
 #packages(rgdal)
 #packages(ragg)
 #packages(Cairo)
+packages(stars)
 packages(RJSONIO)
 ## Packages for Shiny 
 packages(shiny)

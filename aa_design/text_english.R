@@ -42,7 +42,7 @@ output$t6_b2_button3_field <- reactive({'Choose the size of the box to be interp
 ############################ BASENAME FIELDS
 output$basename_area_field     <- reactive({"Basename of area file to export"})
 output$basename_sampling_field <- reactive({"Basename of csv to export"})
-output$basename_export_field   <- reactive({"Basename of sampling design files to export"})
+output$basename_export_field   <- reactive({"Basename of sampling design files to export. Nameing according to the shapefile mask allows for easier understanding."})
 
 ############################ SERVER FIELDS
 output$field_map_area_filename <- reactive({'Map area file name (csv format)'})
@@ -168,7 +168,8 @@ output$t2_b4_title <- reactive({"Manual selection of areas ?"})
 
 output$t2_b4_body  <- reactive({HTML(paste0(
   
-  "The map classes will be used as strata in the design of the sampling"
+  "By uploading a csv file with the class names and the corresponding area in pixels, the compute heavy pixel counting steps will be skipped. <br/>
+  These map classes will be used as strata in the design of the sampling"
     
   ))})
 
@@ -212,6 +213,7 @@ output$t3_b3_title  <- reactive({"Legend labeling"})
 output$t3_b3_body  <- reactive({HTML(paste0(
   "The legend classes need to be specified and submitted. Please wait for the map values to appear. 
   Then type the names of the classes and submit the legend.<br/>
+  You can give classes the same new label to merge them into the same class (strata). <br/>
   After submitting the legend the table with the map classes and area will appear.
   The legend names can be modified at any time in this tab.<br/>"
   

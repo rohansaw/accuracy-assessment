@@ -27,6 +27,8 @@
 ####### Start Server
 
 shinyServer(function(input, output, session) {
+
+  options(shiny.maxRequestSize = 5000 * 1024^2)
   
   observeEvent(input$jsEvent, {
     output$ceo_url_with_clipboard <- renderUI({
@@ -148,6 +150,15 @@ shinyServer(function(input, output, session) {
     restrictions = system.file(package = 'base')
   )
   
+  shinyFileChoose(
+    input,
+    'shapefile',
+    filetype = c('shp'),
+    roots = volumes,
+    session = session,
+    restrictions = system.file(package = 'base')
+  )
+  
   
   ##################################################################################################################################
   ############### Find out map type and store the variable
@@ -155,8 +166,7 @@ shinyServer(function(input, output, session) {
     req(input$file)
     raster_type <- c('tif', 'img', 'pix', 'rst', 'jpeg2000', 'grd', 'vrt', 'hdf')
 
-    df <- parseFilePaths(volumes, input$file)
-    file_path <- as.character(df[, "datapath"])
+    file_path <- input$file$datapath
     ending <- str_sub(file_path, -3)
     print(ending)
     if (ending %in% raster_type) {
@@ -172,8 +182,7 @@ shinyServer(function(input, output, session) {
       need(input$file, "Missing input: Please select the map file")
     )
     
-    df <- parseFilePaths(volumes, input$file)
-    file_path <- as.character(df[, "datapath"])
+    file_path <- input$file$datapath
     nofile <- as.character("No file selected")
     if (is.null(file_path)) {
       cat(nofile)
@@ -185,8 +194,7 @@ shinyServer(function(input, output, session) {
   ################################# Output directory path
   outdir <- reactive({
     req(input$file)
-    df <- parseFilePaths(volumes, input$file)
-    file_path <- as.character(df[, "datapath"])
+    file_path <-  input$file$datapath
     dirn <- dirname(file_path)
     base <-
       substr(basename(file_path), 0, nchar(basename(file_path)) - 4)
@@ -247,19 +255,128 @@ shinyServer(function(input, output, session) {
   })
   
   ##################################################################################################################################
+  ############### Masking with shapefile
+  
+  maskShapefile <- reactive({
+    if (!is.null(input$shapefile)) {
+      shapefile_zip <- input$shapefile$datapath
+      unzip_dir <- tempfile()
+      unzip(shapefile_zip, exdir = unzip_dir)
+      
+      # Find the .shp file in the extracted contents
+      shp_file <- list.files(unzip_dir, pattern = "\\.shp$", full.names = TRUE, recursive = TRUE)
+      print(shp_file)
+      if(file.exists(shp_file)) {
+        vect(shp_file)  # Read the shapefile using sf
+      }
+    } else {
+      NULL
+    }
+  })
+  
+  output$shapefilePath <- renderPrint({
+    if (!is.null(input$shapefile)) {
+      input$shapefile$datapath
+    } else {
+      "No shapefile selected. The entire raster will be used."
+    }
+  })
+  
+  ##################################################################################################################################
   ############### Read the input raster or vector data under reactive variable 'lcmap'
+  
+  maskedRasterPath <- reactiveVal(NULL)
+  
   lcmap <- reactive({
     print("Check: lcmap")
     req(mapType() == "raster_type", input$file)
-    withProgress(message = 'Reading the map file',
-                 value = 0,
-                 {
-                   setProgress(value = .1)
-                   df <- parseFilePaths(volumes, input$file)
-                   file_path <- as.character(df[, "datapath"])
-                   lcmap <- rast(file_path)
-                 })
+    if (!is.null(shapefile)) {
+      validate(
+        need(crs(raster) == crs(shapefile), "Error: CRS mismatch between raster and shapefile. Please reproject the shapefile.")
+      )
+    }
+    
+    # # If the masked raster path already exists, return it
+    # if (!is.null(maskedRasterPath())) {
+    #   return(maskedRasterPath())
+    # }
+    
+    withProgress(message = 'Processing raster file. This might take multiple minutes depending on the size.', value = 0, {
+      setProgress(value = .1)
+      
+      # Get input raster file path
+      file_path <- input$file$datapath
+      raster <- rast(file_path)
+      
+      # Apply mask if a shapefile is provided
+      shapefile <- maskShapefile()
+      if (!is.null(shapefile)) {
+        print("Applying mask using shapefile on disk")
+        
+        if (!crs(raster) == crs(shapefile)) {
+          showNotification("Error: CRS mismatch between raster and shapefile.", type = "error")
+        }
+        
+        original_datatype <- datatype(raster)
+        print(original_datatype)
+        
+        raster <- mask(raster, shapefile)
+        setProgress(value = .7)
+        
+        # Write masked raster directly to disk for debug and oft computation
+        masked_raster_path <- tempfile(fileext = ".tif")
+        writeRaster(raster, masked_raster_path, overwrite = TRUE, datatype = original_datatype)
+        setProgress(value = .9)
+        
+        # Store the path in the reactive value
+        maskedRasterPath(masked_raster_path)
+      } else {
+        maskedRasterPath(NULL)
+      }
+      
+      setProgress(value = 1)
+      raster  # Return the original file path if no mask is applied
+    })
   })
+  
+  # lcmap <- reactive({
+  #   print("Check: lcmap")
+  #   req(mapType() == "raster_type", input$file)
+  #   withProgress(message = 'Reading the map file',
+  #                value = 0,
+  #                {
+  #                  setProgress(value = .1)
+  #                  df <- parseFilePaths(volumes, input$file)
+  #                  file_path <- as.character(df[, "datapath"])
+  #                  raster <- rast(file_path)  # Read the raster
+  #                  
+  #                  # Apply mask if a shapefile is provided
+  #                  shapefile <- maskShapefile()
+  #                  if (!is.null(shapefile)) {
+  #                    print("Applying mask using the shapefile")
+  #                    raster <- mask(raster, shapefile)
+  #                    masked_raster_path <- tempfile(fileext = ".tif")  # Temporary file for the masked raster
+  #                    writeRaster(raster, masked_raster_path, overwrite = TRUE)  # Save the masked raster
+  #                    raster <- rast(masked_raster_path)  # Reload from the saved file for consistency ensured
+  #                  }
+  #                  
+  #                  setProgress(value = 1)
+  #                  raster  # Return the (masked) raster
+  #                })
+  # })
+  
+  # lcmap <- reactive({
+  #   print("Check: lcmap")
+  #   req(mapType() == "raster_type", input$file)
+  #   withProgress(message = 'Reading the map file',
+  #                value = 0,
+  #                {
+  #                  setProgress(value = .1)
+  #                  df <- parseFilePaths(volumes, input$file)
+  #                  file_path <- as.character(df[, "datapath"])
+  #                  lcmap <- rast(file_path)
+  #                })
+  # })
   
   
   
@@ -464,17 +581,19 @@ shinyServer(function(input, output, session) {
       ############### Use OFT to compute the areas
       if (osSystem == "Linux") {
         print("Computing frequency values using OFT")
-        
+        lcmap()
         withProgress(message = 'Computing frequency values using OFT',
                      value = 0,
                      {
                        setProgress(value = .1)
                        
-                       inputfile <- input$file
-                       df <- parseFilePaths(volumes, input$file)
-                       file_path <- as.character(df[, "datapath"])
-                       
+                       file_path <- input$file$datapath
                        dataname <- file_path
+                       
+                       if(!is.null(maskedRasterPath())){
+                         print("Using masked file for area computation")
+                         dataname <- maskedRasterPath()
+                       } 
                        print(dataname)
                        
                        ############### Use oft-stat to compute self-zonal stats
@@ -514,8 +633,6 @@ shinyServer(function(input, output, session) {
                        hist <- pixel_count(dataname)
                        hist$edit <- hist$Bucket
                        write.table(hist,paste0(outdir(),"/stats.txt"),row.names = F,col.names = F)
-                       
-                       
                      })
         
         stats <-
@@ -534,6 +651,7 @@ shinyServer(function(input, output, session) {
         ## Use R to compute the areas
         print("Computing frequency values using R")
         lcmap <- lcmap()
+        # TODO apply mask
         ############### Use multicore clusters to compute frequency
         #beginCluster()
         withProgress(message = 'Computing frequency values.....',
@@ -781,7 +899,6 @@ shinyServer(function(input, output, session) {
     if (input$IsDisplayMap == T) {
       #plot(lcmap(), axes = FALSE)
       #lcmap()
-      
       m <- leaflet() %>% addTiles()  %>%  addRasterImage(lcmap())
       m
     }
@@ -1072,8 +1189,19 @@ shinyServer(function(input, output, session) {
           mutate(original_classes = as.numeric(original_classes)) %>%
           as.matrix()
         
+        print(reclass_table)
+        
         # Apply reclassification to the map in memory
-        map <- classify(map, rcl = reclass_table)
+        if (!all(reclass_table[, 1] == reclass_table[, 2])) { 
+          withProgress(message = 'Reclassifying map',
+                       value = 0,
+                       {
+                         setProgress(value = .1)
+                         map <- classify(map, rcl = reclass_table)
+                       })
+        } else {
+          message("Reclassification skipped: 'Before' and 'After' values are the same.")
+        }
         
         
         #beginCluster()
@@ -1082,14 +1210,19 @@ shinyServer(function(input, output, session) {
         withProgress(message = 'Generating random points ',
                      value = 0,
                      {
-                       setProgress(value = .1)
+                       setProgress(value = .3)
                        rand_sample <-spatSample(map, (sum(rp$final) *
                                                         10 + log((
                                                           sum(rp$map_area)
-                                                        ))), method="random", xy = TRUE)
+                                                        ))), method="random", xy = TRUE, na.rm = TRUE)
                      })
+
         names(rand_sample) <- c("x_coord", "y_coord", "map_code")
         rand_sample$id     <- row(rand_sample)[, 1]
+
+        class_counts <- table(rand_sample$map_code)
+        print("Number of samples per class:")
+        print(class_counts)
         
         rp2 <-
           merge(
@@ -1103,7 +1236,7 @@ shinyServer(function(input, output, session) {
         
         ############### Create the list of classes that need to be specifically sampled
         to_rtp <- rp2[rp2$Freq <  rp2$final, ]$map_code
-        
+        print(to_rtp)
         
         
         ############### Create the list of classes that are enough represented in the random sampling
@@ -1113,11 +1246,34 @@ shinyServer(function(input, output, session) {
         
         ############### Loop into the well represented classes, sample and append
         if (length(to_spl) > 0) {
+        
           for (i in 1:length(to_spl)) {
+            print("Doing something with enough representd")
+            print(to_spl[i])
+            print(rp2[rp2$map_code == to_spl[i], ]$final)
+            print(length(rand_sample[rand_sample$map_code == to_spl[i], ]$id))
+            print(length(sample(rand_sample[rand_sample$map_code == to_spl[i], ]$id,
+                                rp2[rp2$map_code == to_spl[i], ]$final)))
+            print(sum(duplicated(rand_sample$id)))
+            print(sum(is.na(rand_sample$id)))
+            print(sum(is.na(rand_sample[rand_sample$map_code == to_spl[i], ]$id)))
+            print(length(unique(sample(rand_sample[rand_sample$map_code == to_spl[i], ]$id, 
+                                 rp2[rp2$map_code == to_spl[i], ]$final))))
+            
+            
+            
+            sampled_ids <- sample(rand_sample[rand_sample$map_code == to_spl[i], ]$id,
+                                  rp2[rp2$map_code == to_spl[i], ]$final)
+            
+            unmatched_ids <- sampled_ids[!sampled_ids %in% rand_sample$id]
+            print(unmatched_ids)
+            
+            
             tmp <- rand_sample[rand_sample$id
                                %in%
                                  sample(rand_sample[rand_sample$map_code == to_spl[i], ]$id,
                                         rp2[rp2$map_code == to_spl[i], ]$final), ]
+            print(length(tmp$id))
             final <- rbind(final, tmp)
           }
         }
@@ -1135,11 +1291,13 @@ shinyServer(function(input, output, session) {
               {
                 setProgress(value = .1)
                 size_rtp <- rp2[rp2$map_code==to_rtp[i], ]$final
+                print(paste("Class:", to_rtp[i], " - Current size_rtp (final value):", size_rtp))
                 strata <-
                   mask(map, map,inverse=TRUE,maskvalues=to_rtp[i])
                 tmp_rtp <- 
                   spatSample(strata, size=size_rtp*10, 
                              method="random", na.rm=T, xy=T, exhaustive=T)
+                print(paste("Class:", to_rtp[i], " - Number of pixels in tmp_rtp:", nrow(tmp_rtp)))
               }
             )
             
@@ -1147,6 +1305,8 @@ shinyServer(function(input, output, session) {
             tmp_rtp$id <- row(tmp_rtp)[, 1]
             sampling <- min(rp2[rp2$map_code == to_rtp[i], ]$final,
                             rp2[rp2$map_code == to_rtp[i], ]$map_area)
+            
+            print(paste("Class:", to_rtp[i], " - Sampling size:", sampling))
             
             tmp <- tmp_rtp[tmp_rtp$id
                            %in%
@@ -1963,6 +2123,7 @@ shinyServer(function(input, output, session) {
       temp_dir <- tempdir()  # Temporary directory for files
       ceo_file_name <- file.path(temp_dir, paste0(input$basename_CE, "_CEO_Samples.csv"))
       area_file_name <- file.path(temp_dir, paste0(input$basename_CE, "_Area.csv"))
+      sampling_design_file_name <- file.path(temp_dir,  paste(input$basename_CE, "_SamplingDesign.csv", sep = ""))
       
       shuffled_ceo <- ceo_file()[sample(nrow(ceo_file())), ]
       
@@ -1972,8 +2133,10 @@ shinyServer(function(input, output, session) {
       # Write the Area file with a proper name
       write.csv(maparea_final(), area_file_name, row.names = FALSE)
       
+      write.csv(strat_sample_adjusted(), sampling_design_file_name, row.names = FALSE)
+      
       # Bundle the files into a zip
-      zip(zipfile, files = c(ceo_file_name, area_file_name), flags = "-j")
+      zip(zipfile, files = c(ceo_file_name, area_file_name, sampling_design_file_name), flags = "-j")
     }
   )
 
